@@ -7,13 +7,9 @@ diagnósticos en cardiología.
 """
 
 import argparse
-import os
 import sys
 import numpy as np
 import pandas as pd
-
-# Añadir directorio actual al path para imports limpios
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Configurar stdout defensivo para consolas Windows (cp1252)
 if sys.stdout.encoding and sys.stdout.encoding.lower().startswith("cp"):
@@ -46,15 +42,16 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--impute-zeros",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Imputar ceros no fisiológicos en RestingBP y Colesterol mediante la mediana"
+        help="Imputar ceros no fisiológicos en RestingBP y Colesterol mediante la mediana "
+             "(desactivar con --no-impute-zeros)"
     )
     parser.add_argument(
         "--export-plots",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Generar y guardar gráficos en el directorio img/"
+        help="Generar y guardar gráficos en el directorio img/ (desactivar con --no-export-plots)"
     )
     parser.add_argument(
         "--min-recall",
@@ -107,7 +104,7 @@ def run_pipeline(
 
     df_clean: pd.DataFrame = data_processing.clean_clinical_data(df_raw, impute_zeros=impute_zeros)
     if impute_zeros:
-        print("      ✅ Ceros en RestingBP y Colesterol sustituidos x NaN e imputados con la mediana de la cohorte.")
+        print("      ✅ Ceros en RestingBP y Colesterol sustituidos por NaN e imputados con la mediana de la cohorte.")
 
     # 4. Comprobacion de balanceo de clases
     print("\n[4/7] Comprobación de balanceo de la variable objetivo (HeartDisease):")
@@ -115,22 +112,22 @@ def run_pipeline(
     pct_target: pd.Series = (df_clean["HeartDisease"].value_counts(normalize=True) * 100).round(2)
     print(f"      • Clase 0 (Normal):      {conteo_target[0]} pacientes ({pct_target[0]}%)")
     print(f"      • Clase 1 (Cardiopatía): {conteo_target[1]} pacientes ({pct_target[1]}%)")
-    print("      ℹ️  Conclusión: La distribución (55.3% vs 44.7%) está prácticamente equilibrada.")
+    print(f"      ℹ️  Conclusión: La distribución ({pct_target[1]}% vs {pct_target[0]}%) está prácticamente equilibrada.")
     print("          No requiere sobremuestreo sintético (SMOTE); la estratificación (stratify=y) es óptima.")
 
     # 5. Preprocesamiento, One-Hot Encoding y Escalado
     print("\n[5/7] Preparación matricial, One-Hot Encoding y división estratificada:")
     X, y = data_processing.prepare_features(df_clean, target_col="HeartDisease")
-    X_train_s, X_test_s, y_train, y_test, scaler, feature_names = data_processing.split_and_scale_data(
+    X_train_s, X_test_s, y_train, y_test, _, feature_names = data_processing.split_and_scale_data(
         X, y, test_size=config.TEST_SIZE, random_state=config.SEED
     )
     print(f"      • Conjunto de entrenamiento: {X_train_s.shape[0]} muestras x {X_train_s.shape[1]} variables codificadas")
     print(f"      • Conjunto de prueba:        {X_test_s.shape[0]} muestras")
-    print(f"      • Escalador: StandardScaler ajustado exclusivamente sobre Train (cero fuga de datos)")
+    print("      • Escalador: StandardScaler ajustado exclusivamente sobre Train")
 
     # 6. Benchmarking comparativo de los 5 modelos
     print("\n[6/7] Entrenamiento y evaluación comparativa de los 5 clasificadores:")
-    modelos_lista: list[tuple[str, object]] = models.get_classification_models(random_state=config.SEED)
+    modelos_lista: list[tuple[str, object]] = models.get_classification_models()
     df_metrics, trained_models = models.train_and_evaluate_models(
         modelos_lista, X_train_s, X_test_s, y_train, y_test
     )
@@ -162,25 +159,27 @@ def run_pipeline(
     print(f"      • {df_cv.loc[0, 'Modelo']} lidera CV con F1 medio de: {df_cv.loc[0, 'CV_F1_Mean']:.2%} (±{df_cv.loc[0, 'CV_F1_Std']:.2%})")
 
     # Comparativa de impacto de class_weight
+    print("\n      ⚖️  Impacto de class_weight='balanced' sobre el F1 en test:")
     df_balance_impact: pd.DataFrame = models.analyze_class_balance_impact(
         X_train_s, X_test_s, y_train, y_test
     )
+    for _, fila in df_balance_impact.iterrows():
+        print(
+            f"      • {fila['Modelo']:20s} F1 normal: {fila['F1_Normal']:.2%} | "
+            f"F1 balanced: {fila['F1_Balanced']:.2%}"
+        )
 
     # 7. Analisis de umbrales clinicos (Threshold Tuning)
     print("\n[7/7] Análisis de Umbral Clínico (Minimización de Falsos Negativos):")
-    # Extraer probabilidades de prediccion del mejor modelo
-    if hasattr(mejor_modelo_obj, "predict_proba"):
-        y_test_proba: np.ndarray = mejor_modelo_obj.predict_proba(X_test_s)[:, 1]
-    else:
-        # Fallback a decision function si predict_proba no esta disponible
-        y_test_proba = mejor_modelo_obj.decision_function(X_test_s)
+    # Extraer probabilidades de predicción del mejor modelo (todos exponen predict_proba)
+    y_test_proba: np.ndarray = mejor_modelo_obj.predict_proba(X_test_s)[:, 1]
 
     df_thresholds: pd.DataFrame = models.evaluate_threshold_range(
         y_test, y_test_proba, steps=config.THRESHOLDS_STEPS
     )
 
     # Métricas al umbral por defecto (0.50)
-    tp_def, tn_def, fp_def, fn_def, acc_def, prec_def, rec_def, f1_def = models.calculate_metrics_at_threshold(
+    _, _, _, fn_def, _, prec_def, rec_def, _ = models.calculate_metrics_at_threshold(
         y_test, y_test_proba, threshold=config.DEFAULT_THRESHOLD
     )
 
@@ -192,12 +191,11 @@ def run_pipeline(
     rec_opt: float = float(sweet_spot["Recall"])
     prec_opt: float = float(sweet_spot["Precision"])
     fn_opt: int = int(sweet_spot["FN"])
-    fp_opt: int = int(sweet_spot["FP"])
 
     print(f"      • Umbral estándar (0.50): Recall: {rec_def:.2%} | Precision: {prec_def:.2%} | Falsos Negativos (Omitidos): {fn_def}")
     print(f"      • Umbral clínico ({t_opt:.2f}):  Recall: {rec_opt:.2%} | Precision: {prec_opt:.2%} | Falsos Negativos (Omitidos): {fn_opt}")
-    print(f"      💡 Conclusión médica: Al ajustar el umbral a {t_opt:.2f}, los Falsos Negativos se reducen de {fn_def} a solo {fn_opt},")
-    print("         salvando vidas al detectar a pacientes cardíacos con un costo de falsas alarmas asumible en triaje.")
+    print(f"      💡 Al ajustar el umbral a {t_opt:.2f}, los Falsos Negativos pasan de {fn_def} a {fn_opt},")
+    print("         a cambio de más falsas alarmas. Nota: el umbral se elige sobre el test set (estimación optimista).")
 
     # Generación y exportación de gráficos
     if export_plots:
@@ -209,7 +207,8 @@ def run_pipeline(
         # Matriz de confusion con prediccion estandar
         y_test_pred_best: np.ndarray = mejor_modelo_obj.predict(X_test_s)
         visualization.plot_confusion_matrix(
-            y_test, y_test_pred_best, model_name=mejor_modelo_nombre, threshold=0.50, output_dir=config.IMG_DIR
+            y_test, y_test_pred_best, model_name=mejor_modelo_nombre, threshold=config.DEFAULT_THRESHOLD,
+            output_dir=config.IMG_DIR
         )
 
         # Curva de umbrales clinicos
@@ -232,7 +231,7 @@ def run_pipeline(
                 trained_models["Logistic Regression"], feature_names, "Logistic Regression", output_dir=config.IMG_DIR
             )
 
-        print("      ✅ Todas las figuras generadas y almacenadas con éxito en formato de alta resolución (300 DPI).")
+        print("      ✅ Figuras guardadas a 300 DPI.")
 
     print("\n" + "=" * 80)
     print(" Pipeline ejecutado con éxito.")

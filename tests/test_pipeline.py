@@ -90,7 +90,7 @@ class TestHeartFailurePipeline(unittest.TestCase):
             X, y, test_size=0.2, random_state=42
         )
 
-        modelos_lista = models.get_classification_models(random_state=42)
+        modelos_lista = models.get_classification_models()
         df_metrics, trained_dict = models.train_and_evaluate_models(
             modelos_lista, X_train_s, X_test_s, y_train, y_test
         )
@@ -133,7 +133,7 @@ class TestHeartFailurePipeline(unittest.TestCase):
             X, y, test_size=0.2, random_state=42
         )
 
-        clf = models.get_classification_models(random_state=42)[0][1]
+        clf = models.get_classification_models()[0][1]
         clf.fit(X_train_s, y_train)
         y_proba = clf.predict_proba(X_test_s)[:, 1]
 

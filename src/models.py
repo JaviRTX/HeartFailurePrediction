@@ -29,14 +29,14 @@ from src import config
 
 
 def get_classification_models(
-    random_state: int = config.SEED,
     balanced_weights: bool = False
 ) -> list[tuple[str, object]]:
     """
     Instancia los 5 clasificadores estándar con hiperparámetros controlados.
 
+    Las semillas de cada estimador se toman de config.MODEL_SEEDS.
+
     Args:
-        random_state (int): Semilla para garantizar reproducibilidad algorítmica.
         balanced_weights (bool): Si es True, activa ponderación inversa de clases.
 
     Returns:
@@ -47,7 +47,7 @@ def get_classification_models(
     # Colección de clasificadores supervisados evaluados
     modelos: list[tuple[str, object]] = [
         ("Logistic Regression", LogisticRegression(
-            max_iter=1951,
+            max_iter=1000,
             class_weight=weights,
             random_state=config.MODEL_SEEDS["logistic_regression"]
         )),
@@ -106,7 +106,8 @@ def train_and_evaluate_models(
             y_test_proba: np.ndarray = modelo.predict_proba(X_test)[:, 1]
             auc: float = float(roc_auc_score(y_test, y_test_proba))
         else:
-            auc = 0.0
+            # Sin probabilidades no se puede calcular el AUC
+            auc = float("nan")
 
         # Calculo de metricas clasicas
         train_acc: float = float(accuracy_score(y_train, y_train_pred))
@@ -127,7 +128,7 @@ def train_and_evaluate_models(
             "Overfitting_Gap": gap_overfitting
         })
 
-    # Dataframe comparativo ordenado x F1_Score desc
+    # DataFrame comparativo ordenado por F1_Score desc
     df_metrics: pd.DataFrame = pd.DataFrame(results).sort_values(
         by="F1_Score", ascending=False
     ).reset_index(drop=True)
@@ -150,13 +151,13 @@ def evaluate_cross_validation(
         X (pd.DataFrame): Predictores sin escalar.
         y (pd.Series): Etiquetas reales.
         n_splits (int): Numero de particiones estratificadas.
-        random_state (int): Semilla para barajar los pliegues.
+        random_state (int): Semilla para barajar los pliegues (los modelos usan config.MODEL_SEEDS).
 
     Returns:
         pd.DataFrame: Resumen estadistico de metricas medias y desviacion estandar.
     """
     cv: StratifiedKFold = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    modelos: list[tuple[str, object]] = get_classification_models(random_state=random_state)
+    modelos: list[tuple[str, object]] = get_classification_models()
     scoring: list[str] = ["accuracy", "recall", "precision", "f1", "roc_auc"]
 
     cv_results: list[dict[str, object]] = []
@@ -185,7 +186,7 @@ def evaluate_cross_validation(
             "CV_Train_Acc_Mean": float(scores["train_accuracy"].mean())
         })
 
-    # Ordenar x F1 medio desc
+    # Ordenar por F1 medio desc
     df_cv: pd.DataFrame = pd.DataFrame(cv_results).sort_values(
         by="CV_F1_Mean", ascending=False
     ).reset_index(drop=True)
@@ -201,8 +202,8 @@ def analyze_class_balance_impact(
     """
     Evalua si el balanceo de pesos (class_weight='balanced') aporta beneficio real.
 
-    En este dataset, la proporcion es 55.3% enfermos / 44.7% sanos, una distribucion
-    naturalmente equilibrada donde la estratificacion suele ser optima.
+    En este dataset la proporción es 55.3% enfermos / 44.7% sanos, una distribución
+    prácticamente equilibrada donde la estratificación suele ser suficiente.
 
     Args:
         X_train (np.ndarray): Matriz de entrenamiento escalada.
@@ -296,7 +297,7 @@ def evaluate_threshold_range(
         steps (int): Numero de intervalos equidistantes evaluados.
 
     Returns:
-        pd.DataFrame: Tabla con TP, TN, FP, FN, Precision, Recall, F1 y Accuracy x umbral.
+        pd.DataFrame: Tabla con TP, TN, FP, FN, Precision, Recall, F1 y Accuracy por umbral.
     """
     thresholds: np.ndarray = np.linspace(0.0, 1.0, steps)
     filas: list[dict[str, object]] = []
@@ -333,7 +334,7 @@ def find_clinical_sweet_spot(
     sensibilidad minima (Recall >= min_recall).
 
     Args:
-        threshold_df (pd.DataFrame): DataFrame generado x evaluate_threshold_range.
+        threshold_df (pd.DataFrame): DataFrame generado por evaluate_threshold_range.
         min_recall (float): Sensibilidad minima aceptable en entorno hospitalario.
 
     Returns:
