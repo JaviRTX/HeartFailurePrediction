@@ -234,7 +234,7 @@ HeartFailurePrediction/
 
 ### 1. Clonar el Repositorio
 ```bash
-git clone https://github.com/tu-usuario/HeartFailurePrediction.git
+git clone https://github.com/JaviRTX/HeartFailurePrediction.git
 cd HeartFailurePrediction
 ```
 
