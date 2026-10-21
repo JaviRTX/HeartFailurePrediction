@@ -75,10 +75,10 @@ def plot_model_comparison(
     output_dir: str = config.IMG_DIR
 ) -> None:
     """
-    Compara las metricas clave (Accuracy, Recall, Precision, F1-Score) x modelo.
+    Compara las métricas clave (Accuracy, Recall, Precision, F1-Score) por modelo.
 
     Args:
-        metrics_df (pd.DataFrame): Métricas calculadas x evaluate_models.
+        metrics_df (pd.DataFrame): Métricas calculadas por train_and_evaluate_models.
         output_dir (str): Directorio de guardado.
 
     Returns:
@@ -243,7 +243,7 @@ def plot_threshold_curves(
     Visualiza el compromiso entre métricas para selección informada del punto de corte.
 
     Args:
-        threshold_df (pd.DataFrame): Métricas x rango de umbrales.
+        threshold_df (pd.DataFrame): Métricas por rango de umbrales.
         model_name (str): Nombre del modelo evaluado.
         optimal_threshold (float): Umbral clínico recomendado.
         output_dir (str): Directorio de guardado.

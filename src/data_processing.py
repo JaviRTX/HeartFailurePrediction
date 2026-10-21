@@ -46,15 +46,20 @@ def classify_data_typology(data: pd.DataFrame) -> dict[str, list[str]]:
         data (pd.DataFrame): Dataset con las 12 variables cardiológicas.
 
     Returns:
-        dict[str, list[str]]: Diccionario estructurado con listas x tipo de dato.
+        dict[str, list[str]]: Columnas presentes en `data` agrupadas por tipo de dato.
     """
-    # Clasificación x naturaleza de atributos (cuantitativos vs cualitativos)
-    typology_dict: dict[str, list[str]] = {
+    # Clasificación por naturaleza de atributos (cuantitativos vs cualitativos)
+    typology_ref: dict[str, list[str]] = {
         "cuantitativas_discretas": ["Age", "RestingBP", "Cholesterol", "MaxHR"],
         "cuantitativas_continuas": ["Oldpeak"],
         "cualitativas_nominales": ["Sex", "ChestPainType", "RestingECG", "ExerciseAngina"],
         "cualitativas_ordinales": ["ST_Slope"],
         "cualitativas_binarias_target": ["FastingBS", "HeartDisease"]
+    }
+    # Conservar solo las columnas que existen en el dataset recibido
+    typology_dict: dict[str, list[str]] = {
+        tipo: [col for col in columnas if col in data.columns]
+        for tipo, columnas in typology_ref.items()
     }
     return typology_dict
 
@@ -67,9 +72,9 @@ def audit_clinical_anomalies(data: pd.DataFrame) -> pd.DataFrame:
         data (pd.DataFrame): Dataset a auditar.
 
     Returns:
-        pd.DataFrame: Tabla resumen con recuento y porcentaje de ceros x columna.
+        pd.DataFrame: Tabla resumen con recuento y porcentaje de ceros por columna.
     """
-    # Recuento de ceros x columna numerica
+    # Recuento de ceros por columna numérica
     numeric_cols: list[str] = ["Age", "RestingBP", "Cholesterol", "MaxHR", "Oldpeak"]
     anomalies: list[dict[str, object]] = []
 
@@ -83,7 +88,7 @@ def audit_clinical_anomalies(data: pd.DataFrame) -> pd.DataFrame:
             "Anomalia_Fisiologica": "Si" if col in ["RestingBP", "Cholesterol"] and zeros_count > 0 else "No"
         })
 
-    # Pasar a DataFrame con nombres C claros
+    # Pasar a DataFrame con nombres de columna claros
     df_anomalies: pd.DataFrame = pd.DataFrame(anomalies)
     return df_anomalies
 
@@ -97,7 +102,7 @@ def clean_clinical_data(data: pd.DataFrame, impute_zeros: bool = True) -> pd.Dat
 
     Args:
         data (pd.DataFrame): Dataset original.
-        impute_zeros (bool): Si es True, sustituye 0 x NaN e imputa con mediana.
+        impute_zeros (bool): Si es True, sustituye 0 por NaN e imputa con mediana.
 
     Returns:
         pd.DataFrame: Dataset limpio con tipos e imputación coherentes.
@@ -105,11 +110,11 @@ def clean_clinical_data(data: pd.DataFrame, impute_zeros: bool = True) -> pd.Dat
     df_clean: pd.DataFrame = data.copy()
 
     if impute_zeros:
-        # Reemplazar ceros no fisiologicos x NaN
+        # Reemplazar ceros no fisiológicos por NaN
         df_clean["RestingBP"] = df_clean["RestingBP"].replace(0, np.nan)
         df_clean["Cholesterol"] = df_clean["Cholesterol"].replace(0, np.nan)
 
-        # Imputar x mediana de la cohorte para robustez ante outliers
+        # Imputar por mediana de la cohorte para robustez ante outliers
         mediana_bp: float = float(df_clean["RestingBP"].median())
         mediana_chol: float = float(df_clean["Cholesterol"].median())
 
@@ -137,7 +142,7 @@ def prepare_features(
     y: pd.Series = data[target_col].copy()
     features: pd.DataFrame = data.drop(columns=[target_col]).copy()
 
-    # Codificar C categoricas con drop_first=True para evitar colinealidad
+    # Codificar columnas categóricas con drop_first=True para evitar colinealidad
     X: pd.DataFrame = pd.get_dummies(features, drop_first=True)
 
     return X, y
@@ -173,7 +178,7 @@ def split_and_scale_data(
         y,
         test_size=test_size,
         random_state=random_state,
-        stratify=y  # Conserva proporcion 55.3% / 44.7%
+        stratify=y  # Conserva la proporción de clases en train y test
     )
 
     # Escalado homogeneo

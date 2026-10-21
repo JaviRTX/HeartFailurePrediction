@@ -50,7 +50,7 @@ sns.set_theme(style="whitegrid", palette="muted")
 DATA_PATH_DEFAULT: str = os.path.join("data", "heart.csv")
 IMG_DIR_DEFAULT: str = "img"
 
-# Semilla fijada: La respuesta del sentido de la vida, el universo y todo lo demás
+# Semillas de reproducibilidad
 SEED: int = 42
 SEED_TREE: int = 3008
 
@@ -86,16 +86,17 @@ def classify_variables(data: pd.DataFrame) -> dict[str, list[str]]:
         data (pd.DataFrame): Dataset a tipificar.
 
     Returns:
-        dict[str, list[str]]: Diccionario estructurado x naturaleza del dato.
+        dict[str, list[str]]: Columnas presentes en `data` agrupadas por naturaleza del dato.
     """
-    # Clasificación x naturaleza de atributos (cuantitativos vs cualitativos)
-    return {
+    # Clasificación por naturaleza de atributos (cuantitativos vs cualitativos)
+    referencia: dict[str, list[str]] = {
         "cuantitativas_discretas": ["Age", "RestingBP", "Cholesterol", "MaxHR"],
         "cuantitativas_continuas": ["Oldpeak"],
         "cualitativas_nominales": ["Sex", "ChestPainType", "RestingECG", "ExerciseAngina"],
         "cualitativas_ordinales": ["ST_Slope"],
         "cualitativas_binarias_target": ["FastingBS", "HeartDisease"]
     }
+    return {tipo: [c for c in cols if c in data.columns] for tipo, cols in referencia.items()}
 
 
 def audit_anomalies(data: pd.DataFrame) -> pd.DataFrame:
@@ -138,11 +139,11 @@ def clean_data(data: pd.DataFrame, impute_zeros: bool = True) -> pd.DataFrame:
     df_clean: pd.DataFrame = data.copy()
 
     if impute_zeros:
-        # Reemplazar ceros fisiológicamente imposibles x NaN
+        # Reemplazar ceros fisiológicamente imposibles por NaN
         df_clean["RestingBP"] = df_clean["RestingBP"].replace(0, np.nan)
         df_clean["Cholesterol"] = df_clean["Cholesterol"].replace(0, np.nan)
 
-        # Imputar x mediana de la muestra
+        # Imputar por mediana de la muestra
         med_bp: float = float(df_clean["RestingBP"].median())
         med_chol: float = float(df_clean["Cholesterol"].median())
 
@@ -174,7 +175,7 @@ def prepare_matrices(
     X: pd.DataFrame = pd.get_dummies(data.drop(columns=[target_col]), drop_first=True)
     feature_names: list[str] = list(X.columns)
 
-    # División train/test estratificada x distribución de la clase y
+    # División train/test estratificada por distribución de la clase y
     X_train, X_test, y_tr, y_te = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
@@ -208,7 +209,7 @@ def get_models(
         list[tuple[str, object]]: Modelos listos para entrenamiento.
     """
     return [
-        ("Logistic Regression", LogisticRegression(max_iter=1951, class_weight=class_weight, random_state=random_state)),
+        ("Logistic Regression", LogisticRegression(max_iter=1000, class_weight=class_weight, random_state=random_state)),
         ("Decision Tree", DecisionTreeClassifier(class_weight=class_weight, random_state=SEED_TREE)),
         ("Random Forest", RandomForestClassifier(n_estimators=100, class_weight=class_weight, random_state=SEED_TREE)),
         ("KNN", KNeighborsClassifier(n_neighbors=5)),
@@ -250,7 +251,8 @@ def evaluate_models(
             y_test_proba: np.ndarray = m.predict_proba(X_test)[:, 1]
             auc_val: float = float(roc_auc_score(y_test, y_test_proba))
         else:
-            auc_val = 0.0
+            # Sin probabilidades no se puede calcular el AUC
+            auc_val = float("nan")
 
         train_acc: float = float(accuracy_score(y_train, y_train_pred))
         test_acc: float = float(accuracy_score(y_test, y_test_pred))
@@ -270,7 +272,7 @@ def evaluate_models(
             "Overfitting_Gap": gap
         })
 
-    # Ordenar x F1 desc
+    # Ordenar por F1 desc
     df_metrics: pd.DataFrame = pd.DataFrame(filas).sort_values(
         by="F1_Score", ascending=False
     ).reset_index(drop=True)
@@ -338,7 +340,7 @@ def calculate_metrics_at_threshold(
     Returns:
         tuple: (tp, tn, fp, fn, accuracy, precision, recall, f1)
     """
-    # Predicción x umbral
+    # Predicción según umbral
     y_pred: np.ndarray = (y_pred_proba >= threshold).astype(int)
 
     # Matriz confusión
@@ -368,7 +370,7 @@ def evaluate_threshold_range(
     steps: int = 101
 ) -> pd.DataFrame:
     """
-    Evalúa 101 umbrales equidistantes entre 0.0 y 1.0.
+    Evalúa `steps` umbrales equidistantes entre 0.0 y 1.0.
 
     Args:
         y_true (np.ndarray): Valores verdaderos.
@@ -376,7 +378,7 @@ def evaluate_threshold_range(
         steps (int): Número de intervalos.
 
     Returns:
-        pd.DataFrame: Métricas x cada umbral evaluado.
+        pd.DataFrame: Métricas por cada umbral evaluado.
     """
     thresholds: np.ndarray = np.linspace(0.0, 1.0, steps)
     filas: list[dict[str, object]] = []
@@ -401,7 +403,7 @@ def evaluate_threshold_range(
 
 
 # ==============================================================================
-# 5. VISUALIZACIÓN DESACOPLADA (REGLA 2 Y 7 DEL DECÁLOGO)
+# 5. VISUALIZACIÓN DESACOPLADA
 # ==============================================================================
 def plot_target_distribution(data: pd.DataFrame, output_dir: str = IMG_DIR_DEFAULT) -> None:
     """Representa la distribución de la variable objetivo."""
@@ -588,7 +590,7 @@ def main() -> None:
     df_anomalias: pd.DataFrame = audit_anomalies(df_raw)
     for _, fila in df_anomalias.iterrows():
         if fila["Ceros"] > 0 and fila["Inconsistencia_Clinica"] == "Si":
-            print(f"    ⚠️  {fila['Variable']}: {fila['Ceros']} registros en 0 ({fila['Porcentaje (%)']}%) - Imputando x mediana...")
+            print(f"    ⚠️  {fila['Variable']}: {fila['Ceros']} registros en 0 ({fila['Porcentaje (%)']}%) - Imputando por mediana...")
 
     df_clean: pd.DataFrame = clean_data(df_raw, impute_zeros=True)
 
@@ -596,7 +598,7 @@ def main() -> None:
     cnt = df_clean["HeartDisease"].value_counts()
     pct = (df_clean["HeartDisease"].value_counts(normalize=True) * 100).round(2)
     print(f"\n[2] Comprobación de balanceo: Clase 0 = {cnt[0]} ({pct[0]}%) | Clase 1 = {cnt[1]} ({pct[1]}%)")
-    print("    -> Datos naturalmente equilibrados (55.3% / 44.7%). Estratificación aplicada.")
+    print(f"    -> Datos prácticamente equilibrados ({pct[1]}% / {pct[0]}%). Estratificación aplicada.")
 
     # Matrices
     X_train_s, X_test_s, y_train, y_test, feat_names, X, y = prepare_matrices(df_clean)
@@ -626,7 +628,8 @@ def main() -> None:
 
     # Análisis de umbral clínico
     print("\n[5] Análisis de Umbral Clínico (Minimización de Falsos Negativos):")
-    y_proba = best_model.predict_proba(X_test_s)[:, 1] if hasattr(best_model, "predict_proba") else best_model.decision_function(X_test_s)
+    # Todos los modelos exponen predict_proba (SVC con probability=True)
+    y_proba = best_model.predict_proba(X_test_s)[:, 1]
     df_th = evaluate_threshold_range(y_test, y_proba)
 
     # Sweet spot (Recall >= 95%)
@@ -635,10 +638,10 @@ def main() -> None:
     row_opt = df_th.loc[idx_opt]
     opt_t = float(row_opt["Threshold"])
 
-    _, _, fp_def, fn_def, _, prec_def, rec_def, f1_def = calculate_metrics_at_threshold(y_test, y_proba, 0.50)
+    _, _, _, fn_def, _, prec_def, rec_def, _ = calculate_metrics_at_threshold(y_test, y_proba, 0.50)
     print(f"    • Umbral estándar (0.50): Recall: {rec_def:.2%} | Precision: {prec_def:.2%} | Falsos Negativos (Omitidos): {fn_def}")
     print(f"    • Umbral clínico ({opt_t:.2f}):  Recall: {row_opt['Recall']:.2%} | Precision: {row_opt['Precision']:.2%} | Falsos Negativos (Omitidos): {int(row_opt['FN'])}")
-    print(f"    💡 Al ajustar a {opt_t:.2f}, los Falsos Negativos bajan de {fn_def} a {int(row_opt['FN'])}, priorizando la salud del paciente.")
+    print(f"    💡 Al ajustar a {opt_t:.2f}, los Falsos Negativos bajan de {fn_def} a {int(row_opt['FN'])} (umbral elegido sobre test: estimación optimista).")
 
     # Visualizaciones
     print(f"\n[6] Generando gráficos en '{args.img_dir}/'...")
