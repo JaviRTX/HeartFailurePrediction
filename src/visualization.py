@@ -238,7 +238,7 @@ def plot_threshold_curves(
     output_dir: str = config.IMG_DIR
 ) -> None:
     """
-    Representa las curvas continuas de Precision, Recall y F1-Score en funcion del umbral.
+    Representa las curvas continuas de Precision, Recall y F1-Score en función del umbral.
 
     Visualiza el compromiso entre métricas para selección informada del punto de corte.
 

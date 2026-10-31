@@ -7,6 +7,8 @@
 
 Un proyecto de ingeniería de machine learning aplicado a la **detección y cribado temprano de insuficiencia cardíaca (Heart Failure)**. Este repositorio implementa un benchmarking sobre 5 familias algorítmicas de aprendizaje supervisado, evalúa el impacto de la tipología de datos y anomalías clínicas, y profundiza en la **optimización de umbrales diagnósticos (Threshold Tuning)** para minimizar **Falsos Negativos** en un contexto de cribado clínico.
 
+> **⚠️ Aviso:** proyecto educativo y de portfolio. No es un dispositivo médico ni una herramienta de diagnóstico, y no sustituye el criterio de un profesional sanitario.
+
 ---
 
 ## 📑 Tabla de Contenidos
@@ -310,4 +312,6 @@ Las pruebas verifican:
   - University Hospital, Zurich, Switzerland (Dr. William Steinbrunn)
   - University Hospital, Basel, Switzerland (Dr. Matthias Pfisterer)
   - V.A. Medical Center, Long Beach and Cleveland Clinic (Dr. Jerome Rotter)
-- **Licencia:** MIT License.
+- **Licencias:**
+  - **Código:** MIT License (ver [LICENSE](LICENSE)).
+  - **Dataset (`data/heart.csv`):** [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/1-0/), según su publicación en Kaggle. Se redistribuye sin modificaciones; los contenidos pertenecen a sus autores originales.

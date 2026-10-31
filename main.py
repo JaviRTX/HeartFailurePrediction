@@ -89,13 +89,13 @@ def run_pipeline(
     df_raw: pd.DataFrame = data_processing.load_heart_data(data_path)
     print(f"      Dimensiones iniciales: {df_raw.shape[0]} registros x {df_raw.shape[1]} columnas")
 
-    # 2. Tipologia de datos y clasificacion de atributos clinicos
+    # 2. Tipología de datos y clasificación de atributos clínicos
     print("\n[2/7] Tipología y estructura de datos (Atributos Clínicos):")
     tipologia: dict[str, list[str]] = data_processing.classify_data_typology(df_raw)
     for categoria, columnas in tipologia.items():
         print(f"      • {categoria.replace('_', ' ').capitalize()}: {', '.join(columnas)}")
 
-    # 3. Auditoria de anomalias clinicas
+    # 3. Auditoría de anomalías clínicas
     print("\n[3/7] Auditoría de calidad de datos y valores fisiológicos:")
     df_anomalias: pd.DataFrame = data_processing.audit_clinical_anomalies(df_raw)
     for _, fila in df_anomalias.iterrows():
@@ -106,7 +106,7 @@ def run_pipeline(
     if impute_zeros:
         print("      ✅ Ceros en RestingBP y Colesterol sustituidos por NaN e imputados con la mediana de la cohorte.")
 
-    # 4. Comprobacion de balanceo de clases
+    # 4. Comprobación de balanceo de clases
     print("\n[4/7] Comprobación de balanceo de la variable objetivo (HeartDisease):")
     conteo_target: pd.Series = df_clean["HeartDisease"].value_counts()
     pct_target: pd.Series = (df_clean["HeartDisease"].value_counts(normalize=True) * 100).round(2)
@@ -147,13 +147,13 @@ def run_pipeline(
         )
     print("-" * 95)
 
-    # Identificar mejor modelo segun F1_Score (seleccion robusta con idxmax)
+    # Identificar mejor modelo según F1_Score (selección robusta con idxmax)
     idx_mejor: int = int(df_metrics["F1_Score"].idxmax())
     mejor_modelo_nombre: str = str(df_metrics.loc[idx_mejor, "Modelo"])
     mejor_modelo_obj: object = trained_models[mejor_modelo_nombre]
     print(f"\n      🏆 Mejor clasificador global (mayor F1): {mejor_modelo_nombre} (F1: {df_metrics.loc[idx_mejor, 'F1_Score']:.2%})")
 
-    # Validacion cruzada estratificada (5 pliegues)
+    # Validación cruzada estratificada (5 pliegues)
     print("\n      🔄 Ejecutando 5-Fold Stratified Cross Validation para estabilidad estadística...")
     df_cv: pd.DataFrame = models.evaluate_cross_validation(X, y, n_splits=config.CV_FOLDS, random_state=config.SEED)
     print(f"      • {df_cv.loc[0, 'Modelo']} lidera CV con F1 medio de: {df_cv.loc[0, 'CV_F1_Mean']:.2%} (±{df_cv.loc[0, 'CV_F1_Std']:.2%})")
@@ -169,7 +169,7 @@ def run_pipeline(
             f"F1 balanced: {fila['F1_Balanced']:.2%}"
         )
 
-    # 7. Analisis de umbrales clinicos (Threshold Tuning)
+    # 7. Análisis de umbrales clínicos (Threshold Tuning)
     print("\n[7/7] Análisis de Umbral Clínico (Minimización de Falsos Negativos):")
     # Extraer probabilidades de predicción del mejor modelo (todos exponen predict_proba)
     y_test_proba: np.ndarray = mejor_modelo_obj.predict_proba(X_test_s)[:, 1]
@@ -183,7 +183,7 @@ def run_pipeline(
         y_test, y_test_proba, threshold=config.DEFAULT_THRESHOLD
     )
 
-    # Punto dulce clinico
+    # Punto dulce clínico
     sweet_spot: dict[str, object] = models.find_clinical_sweet_spot(
         df_thresholds, min_recall=min_recall
     )
@@ -204,14 +204,14 @@ def run_pipeline(
         visualization.plot_model_comparison(df_metrics, output_dir=config.IMG_DIR)
         visualization.plot_overfitting_analysis(df_metrics, output_dir=config.IMG_DIR)
 
-        # Matriz de confusion con prediccion estandar
+        # Matriz de confusión con predicción estándar
         y_test_pred_best: np.ndarray = mejor_modelo_obj.predict(X_test_s)
         visualization.plot_confusion_matrix(
             y_test, y_test_pred_best, model_name=mejor_modelo_nombre, threshold=config.DEFAULT_THRESHOLD,
             output_dir=config.IMG_DIR
         )
 
-        # Curva de umbrales clinicos
+        # Curva de umbrales clínicos
         visualization.plot_threshold_curves(
             df_thresholds, model_name=mejor_modelo_nombre, optimal_threshold=t_opt, output_dir=config.IMG_DIR
         )
@@ -221,7 +221,7 @@ def run_pipeline(
             trained_models, X_test_s, y_test, output_dir=config.IMG_DIR
         )
 
-        # Factores de riesgo determinantes (Random Forest o Regresion Logistica)
+        # Factores de riesgo determinantes (Random Forest o Regresión Logística)
         if "Random Forest" in trained_models:
             visualization.plot_feature_importance(
                 trained_models["Random Forest"], feature_names, "Random Forest", output_dir=config.IMG_DIR

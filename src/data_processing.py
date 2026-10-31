@@ -129,14 +129,14 @@ def prepare_features(
     target_col: str = "HeartDisease"
 ) -> tuple[pd.DataFrame, pd.Series]:
     """
-    Convierte variables categoricas a numericas con one-hot encoding (pd.get_dummies).
+    Convierte variables categóricas a numéricas con one-hot encoding (pd.get_dummies).
 
     Args:
-        data (pd.DataFrame): Dataset con variables clinicas limpias.
+        data (pd.DataFrame): Dataset con variables clínicas limpias.
         target_col (str): Nombre de la variable objetivo.
 
     Returns:
-        tuple[pd.DataFrame, pd.Series]: Matriz de caracteristicas X y vector target y.
+        tuple[pd.DataFrame, pd.Series]: Matriz de características X y vector target y.
     """
     # Separar variable dependiente e independientes
     y: pd.Series = data[target_col].copy()
@@ -158,21 +158,21 @@ def split_and_scale_data(
     Divide los datos en train/test estratificado y estandariza las escalas.
 
     El escalado con StandardScaler es imprescindible para algoritmos sensibles
-    a distancias y magnitudes (Regresion Logistica, SVM, KNN).
+    a distancias y magnitudes (Regresión Logística, SVM, KNN).
 
     Args:
         X (pd.DataFrame): Matriz de predictores.
         y (pd.Series): Vector de etiquetas reales.
-        test_size (float): Proporcion del conjunto de prueba.
+        test_size (float): Proporción del conjunto de prueba.
         random_state (int): Semilla para garantizar reproducibilidad.
 
     Returns:
         tuple: (X_train_s, X_test_s, y_train, y_test, scaler, feature_names)
     """
-    # Guardar nombres de caracteristicas
+    # Guardar nombres de características
     feature_names: list[str] = list(X.columns)
 
-    # Division train/test estratificada segun distribucion de la clase y
+    # División train/test estratificada según distribución de la clase y
     X_train, X_test, y_train_split, y_test_split = train_test_split(
         X,
         y,
@@ -181,7 +181,7 @@ def split_and_scale_data(
         stratify=y  # Conserva la proporción de clases en train y test
     )
 
-    # Escalado homogeneo
+    # Escalado homogéneo
     scaler: StandardScaler = StandardScaler()
     X_train_s: np.ndarray = scaler.fit_transform(X_train)
     X_test_s: np.ndarray = scaler.transform(X_test)

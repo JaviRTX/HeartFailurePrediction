@@ -78,7 +78,7 @@ def train_and_evaluate_models(
     y_test: np.ndarray
 ) -> tuple[pd.DataFrame, dict[str, object]]:
     """
-    Entrena cada modelo y extrae metricas en conjuntos de entrenamiento y prueba.
+    Entrena cada modelo y extrae métricas en conjuntos de entrenamiento y prueba.
 
     Args:
         modelos (list[tuple[str, object]]): Estimadores a entrenar.
@@ -88,7 +88,7 @@ def train_and_evaluate_models(
         y_test (np.ndarray): Vector objetivo de prueba.
 
     Returns:
-        tuple[pd.DataFrame, dict[str, object]]: DataFrame con metricas y dict de modelos entrenados.
+        tuple[pd.DataFrame, dict[str, object]]: DataFrame con métricas y dict de modelos entrenados.
     """
     results: list[dict[str, object]] = []
     trained_dict: dict[str, object] = {}
@@ -109,7 +109,7 @@ def train_and_evaluate_models(
             # Sin probabilidades no se puede calcular el AUC
             auc = float("nan")
 
-        # Calculo de metricas clasicas
+        # Cálculo de métricas clásicas
         train_acc: float = float(accuracy_score(y_train, y_train_pred))
         test_acc: float = float(accuracy_score(y_test, y_test_pred))
         test_rec: float = float(recall_score(y_test, y_test_pred))
@@ -150,11 +150,11 @@ def evaluate_cross_validation(
     Args:
         X (pd.DataFrame): Predictores sin escalar.
         y (pd.Series): Etiquetas reales.
-        n_splits (int): Numero de particiones estratificadas.
+        n_splits (int): Número de particiones estratificadas.
         random_state (int): Semilla para barajar los pliegues (los modelos usan config.MODEL_SEEDS).
 
     Returns:
-        pd.DataFrame: Resumen estadistico de metricas medias y desviacion estandar.
+        pd.DataFrame: Resumen estadístico de métricas medias y desviación estándar.
     """
     cv: StratifiedKFold = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     modelos: list[tuple[str, object]] = get_classification_models()
@@ -200,7 +200,7 @@ def analyze_class_balance_impact(
     y_test: np.ndarray
 ) -> pd.DataFrame:
     """
-    Evalua si el balanceo de pesos (class_weight='balanced') aporta beneficio real.
+    Evalúa si el balanceo de pesos (class_weight='balanced') aporta beneficio real.
 
     En este dataset la proporción es 55.3% enfermos / 44.7% sanos, una distribución
     prácticamente equilibrada donde la estratificación suele ser suficiente.
@@ -220,7 +220,7 @@ def analyze_class_balance_impact(
     comparativa: list[dict[str, object]] = []
 
     for (nom_std, m_std), (_, m_bal) in zip(modelos_std, modelos_bal):
-        # Ajuste estandar
+        # Ajuste estándar
         m_std.fit(X_train, y_train)
         pred_std: np.ndarray = m_std.predict(X_test)
 
@@ -247,7 +247,7 @@ def calculate_metrics_at_threshold(
     threshold: float
 ) -> tuple[int, int, int, int, float, float, float, float]:
     """
-    Calcula matriz de confusion y metricas diagnosticas para un umbral especifico.
+    Calcula matriz de confusión y métricas diagnósticas para un umbral específico.
 
     Permite evaluar el compromiso clínico entre Sensibilidad (Recall) y Precisión.
 
@@ -259,17 +259,17 @@ def calculate_metrics_at_threshold(
     Returns:
         tuple: (tp, tn, fp, fn, accuracy, precision, recall, f1)
     """
-    # Prediccion segun umbral
+    # Predicción según umbral
     y_pred: np.ndarray = (y_pred_proba >= threshold).astype(int)
 
-    # Matriz confusion
+    # Matriz confusión
     tn_val, fp_val, fn_val, tp_val = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     tn: int = int(tn_val)
     fp: int = int(fp_val)
     fn: int = int(fn_val)
     tp: int = int(tp_val)
 
-    # Calculo metricas
+    # Cálculo métricas
     total: int = tp + tn + fp + fn
     accuracy: float = (tp + tn) / total if total > 0 else 0.0
     precision: float = tp / (tp + fp) if (tp + fp) > 0 else 0.0
@@ -289,12 +289,12 @@ def evaluate_threshold_range(
     steps: int = config.THRESHOLDS_STEPS
 ) -> pd.DataFrame:
     """
-    Itera sobre un rango continuo de umbrales [0.0, 1.0] calculando el vector de metricas.
+    Itera sobre un rango continuo de umbrales [0.0, 1.0] calculando el vector de métricas.
 
     Args:
         y_true (np.ndarray): Vector de etiquetas verdaderas.
         y_pred_proba (np.ndarray): Vector de probabilidades predichas de clase positiva.
-        steps (int): Numero de intervalos equidistantes evaluados.
+        steps (int): Número de intervalos equidistantes evaluados.
 
     Returns:
         pd.DataFrame: Tabla con TP, TN, FP, FN, Precision, Recall, F1 y Accuracy por umbral.
@@ -327,27 +327,27 @@ def find_clinical_sweet_spot(
     min_recall: float = config.CLINICAL_MIN_RECALL
 ) -> dict[str, object]:
     """
-    Determina el umbral optimo de cribado clinico para minimizar Falsos Negativos.
+    Determina el umbral óptimo de cribado clínico para minimizar Falsos Negativos.
 
-    En cardiologia, un Falso Negativo (enfermo no detectado) es potencialmente letal.
-    Esta funcion localiza el umbral que maximiza el F1-Score garantizando una
-    sensibilidad minima (Recall >= min_recall).
+    En cardiología, un Falso Negativo (enfermo no detectado) es potencialmente letal.
+    Esta función localiza el umbral que maximiza el F1-Score garantizando una
+    sensibilidad mínima (Recall >= min_recall).
 
     Args:
         threshold_df (pd.DataFrame): DataFrame generado por evaluate_threshold_range.
-        min_recall (float): Sensibilidad minima aceptable en entorno hospitalario.
+        min_recall (float): Sensibilidad mínima aceptable en entorno hospitalario.
 
     Returns:
-        dict[str, object]: Fila y metricas del umbral clinico optimo seleccionado.
+        dict[str, object]: Fila y métricas del umbral clínico óptimo seleccionado.
     """
-    # Filtrar candidatos que respeten el recall clinico minimo
+    # Filtrar candidatos que respeten el recall clínico mínimo
     candidatos: pd.DataFrame = threshold_df[threshold_df["Recall"] >= min_recall].copy()
 
     if candidatos.empty:
         # Fallback al registro con mayor recall si ninguno alcanza el umbral estricto
         idx_optimo = threshold_df["Recall"].idxmax()
     else:
-        # Seleccion de maximo F1 entre los que cumplen el requisito clinico
+        # Selección de máximo F1 entre los que cumplen el requisito clínico
         idx_optimo = candidatos["F1_Score"].idxmax()
 
     fila_optima: pd.Series = threshold_df.loc[idx_optimo]
